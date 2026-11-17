@@ -59,24 +59,33 @@ def _normalizar_produtos(dados):
 
 
 def _buscar_produtos():
+    """Devolve (lista_de_produtos, lista_de_motivos_das_falhas)."""
+    motivos = []
     for url in APIS_PRODUTOS:
+        site = url.split("/")[2]
         try:
-            resposta = requests.get(url, timeout=8, headers={"User-Agent": "Mozilla/5.0"})
+            resposta = requests.get(url, timeout=10, headers={"User-Agent": "Mozilla/5.0"})
             print("API PRODUTOS ->", url, resposta.status_code, resposta.text[:120], flush=True)
             resposta.raise_for_status()
             lista = _normalizar_produtos(resposta.json())
             if lista:
-                return lista
+                return lista, motivos
+            motivos.append(f"{site}: respondeu, mas sem produtos")
         except (requests.RequestException, ValueError) as erro:
             print("ERRO API PRODUTOS:", url, repr(erro), flush=True)
-    return []
+            motivos.append(f"{site}: {type(erro).__name__} {str(erro)[:120]}")
+    return [], motivos
 
 
 def produtos(request):
     servicos = Servico.objects.filter(ativo=True).order_by("nome")
-    produtos_api = _buscar_produtos()
+    produtos_api, motivos = _buscar_produtos()
     if not produtos_api:
-        messages.warning(request, "Os produtos das lojas parceiras estão indisponíveis no momento.")
+        messages.warning(
+            request,
+            "Os produtos das lojas parceiras estão indisponíveis no momento. "
+            "Detalhes: " + " | ".join(motivos),
+        )
     return render(request, "produtos.html", {"servicos": servicos, "produtos_api": produtos_api})
 
 
