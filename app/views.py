@@ -15,7 +15,8 @@ from .models import Categoria, Contato, Pedido, Servico
 from .serializers import CategoriaSerializer
 from .supabase_client import get_supabase
 
-API_PRODUTOS_URL = "https://fakestoreapi.com/products"
+
+API_PRODUTOS_URL = "https://dummyjson.com/products?limit=20"
 
 
 # ---------------------------------------------------------------- páginas públicas
@@ -41,9 +42,17 @@ def produtos(request):
     servicos = Servico.objects.filter(ativo=True).order_by("nome")
 
     try:
-        resposta = requests.get(API_PRODUTOS_URL, timeout=8)
+        resposta = requests.get(API_PRODUTOS_URL, timeout=8, headers={"User-Agent": "Mozilla/5.0"})
         resposta.raise_for_status()
-        produtos_api = resposta.json()
+        produtos_api = [
+            {
+                "title": p.get("title", ""),
+                "description": p.get("description", ""),
+                "price": p.get("price", 0),
+                "image": p.get("thumbnail", ""),
+            }
+            for p in resposta.json().get("products", [])
+        ]
     except (requests.RequestException, ValueError):
         produtos_api = []
         messages.warning(request, "Os produtos das lojas parceiras estão indisponíveis no momento.")
