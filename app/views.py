@@ -15,8 +15,7 @@ from .models import Categoria, Contato, Pedido, Servico
 from .serializers import CategoriaSerializer
 from .supabase_client import get_supabase
 
-
-API_PRODUTOS_URL = "https://dummyjson.com/products?limit=20"
+API_PRODUTOS_URL = "https://fakestoreapi.com/products"
 
 
 # ---------------------------------------------------------------- páginas públicas
@@ -43,22 +42,25 @@ def produtos(request):
 
     try:
         resposta = requests.get(API_PRODUTOS_URL, timeout=8, headers={"User-Agent": "Mozilla/5.0"})
+        print("API PRODUTOS ->", API_PRODUTOS_URL, resposta.status_code, resposta.text[:200], flush=True)
         resposta.raise_for_status()
+        dados = resposta.json()
+        lista = dados.get("products", []) if isinstance(dados, dict) else dados
         produtos_api = [
             {
                 "title": p.get("title", ""),
                 "description": p.get("description", ""),
                 "price": p.get("price", 0),
-                "image": p.get("thumbnail", ""),
+                "image": p.get("thumbnail") or p.get("image", ""),
             }
-            for p in resposta.json().get("products", [])
+            for p in lista
         ]
-    except (requests.RequestException, ValueError):
+    except (requests.RequestException, ValueError) as erro:
+        print("ERRO API PRODUTOS:", repr(erro), flush=True)
         produtos_api = []
         messages.warning(request, "Os produtos das lojas parceiras estão indisponíveis no momento.")
 
     return render(request, "produtos.html", {"servicos": servicos, "produtos_api": produtos_api})
-
 
 def add_contato(request):
     """Formulário de contato: qualquer visitante pode enviar, sem login."""
